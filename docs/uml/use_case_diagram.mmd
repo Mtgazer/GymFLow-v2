@@ -1,0 +1,32 @@
+```mermaid
+flowchart TD
+    actor[Gym Operator / Admin]
+
+    subgraph GymFlow_System ["GymFlow Management System"]
+        UC1(["View Dashboard Analytics"])
+        UC2(["Register New Member"])
+        UC3(["Search Members"])
+        UC4(["Edit Member Profile"])
+        UC5(["Renew Subscription"])
+        UC6(["Delete Member"])
+        UC7(["Undo Last Operation (Stack)"])
+        UC8(["Database Auto-Switch (MySQL / SQLite)"])
+
+        UC2 -.->|includes| UC3
+        UC6 -.->|pushes restoration to| UC7
+        UC4 -.->|pushes snapshot to| UC7
+        UC1 -.->|reads summary from| UC8
+        UC2 -.->|persists via| UC8
+        UC4 -.->|persists via| UC8
+        UC5 -.->|persists via| UC8
+        UC6 -.->|persists via| UC8
+    end
+
+    actor --> UC1
+    actor --> UC2
+    actor --> UC3
+    actor --> UC4
+    actor --> UC5
+    actor --> UC6
+    actor --> UC7
+```

@@ -1,0 +1,198 @@
+```mermaid
+classDiagram
+    %% Domain Models (OOP Principles: Abstraction, Inheritance, Encapsulation)
+    class BaseEntity {
+        <<abstract>>
+        #id: Optional[int]
+        #created_at: Optional[str]
+        +id() Optional[int]
+        +to_dict()* dict
+        +from_db(row)* BaseEntity
+    }
+
+    class Person {
+        #full_name: str
+        #phone: str
+        #age: int
+        #gender: str
+        +full_name() str
+        +phone() str
+        +age() int
+        +to_dict() dict
+    }
+
+    class Member {
+        +plan: str
+        +expiry: str
+        +is_active() bool
+        +to_dict() dict
+        +from_db(row) Member
+    }
+
+    class Plan {
+        #name: str
+        #duration_days: int
+        #price: float
+        +to_dict() dict
+        +from_db(row) Plan
+    }
+
+    class Subscription {
+        +member_id: int
+        +plan_id: int
+        +start_date: str
+        +end_date: str
+        +payment_status: str
+        +price_paid: float
+        +to_dict() dict
+    }
+
+    BaseEntity <|-- Person
+    Person <|-- Member
+    BaseEntity <|-- Plan
+    BaseEntity <|-- Subscription
+
+    %% Data Structures
+    class MemberLookupIndex {
+        -_by_id: dict[int, Member]
+        -_by_phone: dict[str, Member]
+        +put(member: Member)
+        +get_by_id(id: int) Member
+        +get_by_phone(phone: str) Member
+        +remove(id: int) Member
+        +rebuild(members: list)
+    }
+
+    class UndoStack~T~ {
+        -_items: list[T]
+        -_max_capacity: int
+        +push(item: T)
+        +pop() T
+        +peek() T
+        +is_empty() bool
+        +size() int
+    }
+
+    class ActivityQueue {
+        -_queue: deque
+        +enqueue(item: ActivityLog)
+        +dequeue() ActivityLog
+        +drain() list
+    }
+
+    %% Data Access Layer (Repository Pattern & Singleton)
+    class DatabaseConnectionManager {
+        <<Singleton>>
+        -_instance: DatabaseConnectionManager$
+        -_connection: Any
+        -_driver: str
+        +execute_query(sql, params) list[dict]
+        +execute_one(sql, params) dict
+        +execute_scalar(sql, params) Any
+        +execute_non_query(sql, params) int
+        +commit()
+        +rollback()
+    }
+
+    class BaseRepository~T~ {
+        <<abstract>>
+        +add(entity: T)* int
+        +get_by_id(id: int)* T
+        +get_all()* list[T]
+        +update(entity: T)* bool
+        +delete(id: int)* bool
+    }
+
+    class MemberRepository {
+        -db: DatabaseConnectionManager
+        +add(member: Member) int
+        +get_by_id(id: int) dict
+        +get_by_phone(phone: str) dict
+        +get_members_display() list[Member]
+        +update_member_and_subscription() bool
+        +delete(id: int) bool
+        +create_subscription() int
+        +restore_member_with_subscription() int
+    }
+
+    class PlanRepository {
+        -db: DatabaseConnectionManager
+        +get_by_name(name: str) Plan
+        +get_all() list[Plan]
+    }
+
+    class DashboardRepository {
+        -db: DatabaseConnectionManager
+        +get_total_members() int
+        +get_active_members() int
+        +get_expired_members() int
+        +get_total_revenue() float
+        +get_recent_subscriptions(limit: int) list
+    }
+
+    BaseRepository <|-- MemberRepository
+    BaseRepository <|-- PlanRepository
+    MemberRepository --> DatabaseConnectionManager : uses
+    PlanRepository --> DatabaseConnectionManager : uses
+    DashboardRepository --> DatabaseConnectionManager : uses
+
+    %% Business Logic Layer
+    class MemberService {
+        -member_repo: MemberRepository
+        -plan_repo: PlanRepository
+        -lookup_index: MemberLookupIndex
+        -undo_stack: UndoStack
+        -activity_queue: ActivityQueue
+        +validate_member_input() tuple
+        +register_member() tuple
+        +get_members() list[Member]
+        +edit_member() tuple
+        +delete_member() bool
+        +renew_member() tuple
+        +undo_last_action() tuple
+    }
+
+    class DashboardService {
+        -repo: DashboardRepository
+        +get_total_members() int
+        +get_active_members() int
+        +get_expired_members() int
+        +get_total_revenue() float
+        +get_recent_subscriptions() list
+    }
+
+    MemberService --> MemberRepository : delegates
+    MemberService --> PlanRepository : delegates
+    MemberService --> MemberLookupIndex : aggregates
+    MemberService --> UndoStack : aggregates
+    MemberService --> ActivityQueue : aggregates
+    DashboardService --> DashboardRepository : delegates
+
+    %% Presentation Layer
+    class GymFlow {
+        -container: Container
+        -sidebar: Sidebar
+        -dashboard_page: Dashboard
+        -members_page: Members
+        +show_page(name: str)
+    }
+
+    class Members {
+        -member_service: MemberService
+        +search_members()
+        +undo_action()
+        +open_add_dialog()
+        +edit_member()
+        +delete_member()
+    }
+
+    class Dashboard {
+        -dashboard_service: DashboardService
+        +refresh_dashboard()
+    }
+
+    GymFlow --> Dashboard : contains
+    GymFlow --> Members : contains
+    Members --> MemberService : calls
+    Dashboard --> DashboardService : calls
+```

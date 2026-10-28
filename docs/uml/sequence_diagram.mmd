@@ -1,0 +1,45 @@
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Operator as Desk Operator
+    participant UI as AddMemberDialog
+    participant Service as MemberService
+    participant Index as MemberLookupIndex
+    participant PlanRepo as PlanRepository
+    participant MemberRepo as MemberRepository
+    participant DB as DatabaseManager
+    participant Stack as UndoStack
+    participant Queue as ActivityQueue
+
+    Operator->>UI: Enter Member Details & Click Save
+    UI->>Service: register_member(name, phone, plan, price)
+
+    Service->>Service: validate_member_input()
+    
+    Service->>Index: get_by_phone(phone)
+    Index-->>Service: None (Phone unique)
+
+    Service->>PlanRepo: get_by_name(plan_name)
+    PlanRepo->>DB: execute_one(SELECT plan)
+    DB-->>PlanRepo: plan_dict
+    PlanRepo-->>Service: Plan Entity
+
+    Service->>MemberRepo: add(member)
+    MemberRepo->>DB: execute_non_query(INSERT member)
+    DB-->>MemberRepo: member_id
+    MemberRepo-->>Service: member_id
+
+    Service->>MemberRepo: create_subscription(member_id, plan_id, dates, price)
+    MemberRepo->>DB: execute_non_query(INSERT subscription)
+    DB-->>MemberRepo: subscription_id
+    MemberRepo-->>Service: subscription_id
+
+    Service->>Index: put(member) [O(1) Dictionary Cache]
+    Service->>Queue: enqueue(ActivityLog) [FIFO Queue]
+    Service->>Stack: push(UndoAction) [LIFO Stack]
+
+    Service-->>UI: (True, "Member registered successfully.")
+    UI->>UI: refresh_callback()
+    UI->>UI: destroy()
+    UI-->>Operator: Display new Member Card & updated Stats
+```
