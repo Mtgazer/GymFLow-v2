@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
-APP_NAME = "GymFlow"
+APP_NAME = "GymFlow v3"
 
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 700
@@ -21,7 +21,7 @@ CARD_COLOR = "#21262D"
 TEXT_COLOR = "#FFFFFF"
 SECONDARY_TEXT = "#9CA3AF"
 
-APP_VERSION = "2.0.0"
+APP_VERSION = "3.0.0"
 AUTHOR = "Ibrahim Khalil"
 AUTOHR = AUTHOR  # Maintained for backward compatibility
 CURRENT_YEAR = "2026"

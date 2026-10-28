@@ -1,42 +1,76 @@
-# GymFlow-v2: Advanced Gym Management System
+# GymFlow v3: Advanced Gym Management System
 
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](CHANGELOG.md)
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
 [![GUI Framework](https://img.shields.io/badge/GUI-CustomTkinter-orange.svg)](https://github.com/TomSchimansky/CustomTkinter)
 [![Database](https://img.shields.io/badge/Database-MySQL%20%7C%20SQLite-green.svg)](https://www.mysql.com/)
 [![Tests](https://img.shields.io/badge/Tests-27%20Passed-brightgreen.svg)](tests/)
-[![Architecture](https://img.shields.io/badge/Architecture-4--Layer-purple.svg)](#4-software-architecture-layered-architecture)
-[![Design Patterns](https://img.shields.io/badge/Patterns-Repository%20%26%20Singleton-yellow.svg)](#5-software-design-patterns)
+[![Architecture](https://img.shields.io/badge/Architecture-4--Layer-purple.svg)](#5-software-architecture-4-layered-architecture)
+[![Design Patterns](https://img.shields.io/badge/Patterns-Repository%20%26%20Singleton-yellow.svg)](#6-software-design-patterns)
 
-> **Session 9 Software Engineering Assignment Completion**  
+> **GymFlow Version 3.0.0**  
 > **Author:** Ibrahim Khalil  
 > **Repository:** [Mtgazer/GymFLow-v2](https://github.com/Mtgazer/GymFLow-v2)  
-> **Branch:** `feature/session-9-completion`  
+> **Current Branch:** `feature/gymflow-v3`  
 
 ---
 
 ## 1. Project Overview & Motivation
 
-GymFlow-v2 is an enterprise-grade desktop gym management application written in Python using CustomTkinter. The system provides gym administrators and desk receptionists with a centralized, responsive interface to manage memberships, subscriptions, financial tracking, and real-time analytical metrics.
+GymFlow v3 is an enterprise-grade desktop gym management application built with Python and CustomTkinter. The system provides gym administrators and receptionists with a centralized, responsive interface to manage memberships, subscriptions, financial tracking, and real-time analytical metrics.
 
 ### Problem Statement
-Fitness facilities frequently struggle with either over-complicated, recurring-fee SaaS web portals that require continuous high-speed internet or fragile, unstructured Excel spreadsheets prone to corruption and human error. GymFlow-v2 bridges this gap by delivering a lightning-fast, secure, offline-capable desktop application backed by enterprise MySQL permanent data storage, transactional integrity, and native undo recovery.
+Fitness facilities frequently struggle with either over-complicated, recurring-fee SaaS web portals that require continuous high-speed internet or fragile, unstructured Excel spreadsheets prone to corruption and human error. GymFlow v3 bridges this gap by delivering a lightning-fast, secure, offline-capable desktop application backed by enterprise MySQL permanent data storage, transactional integrity, and native undo recovery.
 
 ---
 
-## 2. Core Project Features
+## 2. What's New in Version 3.0.0
+
+Version 3.0.0 represents a major milestone, upgrading GymFlow from an early SQLite-only desktop prototype to a fully mature, layered enterprise application satisfying all Session 9 Software Engineering specifications:
+
+1. **Enterprise MySQL Integration & Offline Fallback:**
+   - Permanent data storage via `mysql-connector-python` and `pymysql`.
+   - Complete normalized MySQL relational schema ([database/schema.sql](database/schema.sql)) with cascading foreign keys and indexes.
+   - Dynamic credentials loaded via `python-dotenv` from `.env` (with placeholder [.env.example](.env.example)).
+   - Transparent, automatic fallback to local SQLite (`gym.db`) whenever MySQL is unreachable offline.
+2. **GoF Design Patterns Implemented:**
+   - **Repository Pattern:** Generic `BaseRepository[T]` with concrete implementations ([MemberRepository](repositories/member_repository.py), [PlanRepository](repositories/plan_repository.py), [DashboardRepository](repositories/dashboard_repository.py)) completely isolating services from database queries.
+   - **Singleton Pattern:** Thread-safe [DatabaseConnectionManager](data/connection.py) with double-checked class locking (`threading.Lock`).
+3. **Domain-Specific Data Structures ([core/data_structures.py](core/data_structures.py)):**
+   - **Dictionary (`MemberLookupIndex`):** Dual-key hash index by member ID and phone for $O(1)$ amortized lookups and search filtering.
+   - **Stack (`UndoStack`):** Bounded LIFO stack enabling one-click reversal of deletions, updates, or registrations.
+   - **Queue (`ActivityQueue`):** FIFO chronological audit log queue tracking all administrative operations.
+4. **Rich Object-Oriented Domain Hierarchy ([models.py](models.py)):**
+   - Full hierarchy: `BaseEntity(ABC)` &rarr; `Person` &rarr; `Member`, plus `Plan` and `Subscription`.
+   - Encapsulated protected fields (`_full_name`, `_phone`, `_age`) with validation getters and setters.
+5. **Interactive UI Enhancements:**
+   - Interactive `↺ Undo` button in the Members toolbar displaying current stack depth.
+   - In-dialog error message banners in `AddMemberDialog`, `EditMemberDialog`, and `RenewMemberDialog`.
+   - Automatic plan price auto-fill in modal forms.
+6. **Automated Testing Suite ([tests/](tests/)):**
+   - 27 unit and integration tests executing with 100% pass rate in `pytest`.
+7. **Complete Project Documentation & Deliverables:**
+   - 3 UML diagrams (Use Case, Sequence, Class) in Mermaid source and PNG formats in [docs/uml/](docs/uml/).
+   - Authentic application screenshots in [docs/screenshots/](docs/screenshots/).
+   - Professional 6-page PDF report ([GymFlow_Session9_Report.pdf](GymFlow_Session9_Report.pdf)).
+   - Requirements audit table ([PROJECT_AUDIT.md](PROJECT_AUDIT.md)) and full changelog ([CHANGELOG.md](CHANGELOG.md)).
+
+---
+
+## 3. Core Project Features
 
 - **Full CRUD Management:** Seamless Create, Read, Update, and Delete operations for gym members and subscription plans with real-time UI refresh.
 - **Dynamic Dashboard Analytics:** Real-time calculation of total members, active members, expired subscriptions, gross collected revenue, and recent subscription activity.
 - **Fast Search & Live Filtering:** In-memory $O(1)$ dictionary index for searching members by name or phone number with immediate results.
 - **LIFO Undo Operations:** Bounded Undo Stack (`UndoStack`) allowing operators to reverse the most recent member deletion, profile update, or registration with a single click.
-- **Enterprise MySQL Integration:** Permanent relational database integration with parameterized queries, `.env` configuration, and automatic, transparent fallback to local SQLite when operating offline.
+- **Enterprise MySQL Integration:** Permanent relational database integration with parameterized queries, `.env` configuration, and automatic fallback to local SQLite when operating offline.
 - **Modal Dialog Validation:** Comprehensive in-dialog input validation with error banners (validating names, phone formats, and numeric pricing).
 
 ---
 
-## 3. Technologies Used
+## 4. Technologies Used
 
-| Technology / Tool | Version | Purpose in GymFlow-v2 |
+| Technology / Tool | Version | Purpose in GymFlow v3 |
 | :--- | :--- | :--- |
 | **Python** | 3.12+ | Core programming language |
 | **CustomTkinter** | >= 6.0.0 | Modern desktop GUI framework with dark-mode aesthetic styling |
@@ -50,9 +84,9 @@ Fitness facilities frequently struggle with either over-complicated, recurring-f
 
 ---
 
-## 4. Software Architecture: Layered Architecture
+## 5. Software Architecture: 4-Layered Architecture
 
-GymFlow-v2 implements a strict **4-Layered Architecture** enforcing separation of concerns and unidirectional dependency flow:
+GymFlow v3 implements a strict **4-Layered Architecture** enforcing separation of concerns and unidirectional dependency flow:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -88,7 +122,7 @@ GymFlow-v2 implements a strict **4-Layered Architecture** enforcing separation o
 
 ---
 
-## 5. Software Design Patterns
+## 6. Software Design Patterns
 
 ### A. Repository Pattern
 - **Problem Solved:** Prevents tight coupling between application business rules and specific SQL database engines.
@@ -102,9 +136,9 @@ GymFlow-v2 implements a strict **4-Layered Architecture** enforcing separation o
 
 ---
 
-## 6. Domain-Specific Data Structures
+## 7. Domain-Specific Data Structures
 
-GymFlow-v2 incorporates three specialized data structures in `core/data_structures.py`:
+GymFlow v3 incorporates three specialized data structures in `core/data_structures.py`:
 
 | Data Structure | Class Name | Time Complexity | Operational Rationale |
 | :--- | :--- | :--- | :--- |
@@ -114,7 +148,7 @@ GymFlow-v2 incorporates three specialized data structures in `core/data_structur
 
 ---
 
-## 7. Object-Oriented Programming (OOP) Principles
+## 8. Object-Oriented Programming (OOP) Principles
 
 - **Abstraction:** Abstract Base Classes (`BaseEntity`, `BaseRepository`) define strict public contracts using `@abstractmethod`, hiding underlying database syntax and serialization complexities.
 - **Inheritance:** Clean class hierarchy: `BaseEntity` &rarr; `Person` &rarr; `Member`. `Member` inherits identity tracking from `BaseEntity` and demographic attributes from `Person`.
@@ -123,7 +157,7 @@ GymFlow-v2 incorporates three specialized data structures in `core/data_structur
 
 ---
 
-## 8. Database Schema & MySQL Integration
+## 9. Database Schema & MySQL Integration
 
 ### Relational Schema (`database/schema.sql`)
 
@@ -157,17 +191,17 @@ GymFlow-v2 incorporates three specialized data structures in `core/data_structur
 
 ---
 
-## 9. Installation & Setup Guide
+## 10. Installation & Setup Guide
 
 ### Prerequisites
 - Python 3.12 or newer
 - (Optional) MySQL Server 8.0+
 
-### Step 1: Clone the Repository
+### Step 1: Clone the Repository & Checkout Branch
 ```bash
 git clone https://github.com/Mtgazer/GymFLow-v2.git
 cd GymFLow-v2
-git checkout feature/session-9-completion
+git checkout feature/gymflow-v3
 ```
 
 ### Step 2: Create and Activate Virtual Environment
@@ -215,9 +249,9 @@ python app.py
 
 ---
 
-## 10. Automated Testing
+## 11. Automated Testing
 
-GymFlow-v2 includes a comprehensive test suite covering domain models, data structures, repositories, services, and design patterns:
+GymFlow v3 includes a comprehensive test suite covering domain models, data structures, repositories, services, and design patterns:
 
 ```bash
 # Run all automated tests
@@ -264,12 +298,12 @@ tests/test_services.py::TestServices::test_delete_and_undo PASSED               
 tests/test_services.py::TestServices::test_renew_member PASSED                                [ 96%]
 tests/test_services.py::TestServices::test_dashboard_service_summary PASSED                  [100%]
 
-============================== 27 passed in 0.28s ==============================
+============================== 27 passed in 0.15s ==============================
 ```
 
 ---
 
-## 11. UML Diagrams
+## 12. UML Diagrams
 
 Diagram sources are located in `docs/uml/` and can be regenerated via `python docs/uml/render_diagrams.py`:
 
@@ -281,7 +315,7 @@ Diagram sources are located in `docs/uml/` and can be regenerated via `python do
 
 ---
 
-## 12. Application Screenshots
+## 13. Application Screenshots
 
 Actual screen captures from the running application:
 
@@ -294,8 +328,9 @@ Actual screen captures from the running application:
 
 ---
 
-## 13. Project Audit & Deliverables
+## 14. Project Documentation & Artifacts
 
+- Project Changelog: [`CHANGELOG.md`](CHANGELOG.md)
 - Detailed requirements audit: [`PROJECT_AUDIT.md`](PROJECT_AUDIT.md)
 - Complete 6-page PDF Report: [`GymFlow_Session9_Report.pdf`](GymFlow_Session9_Report.pdf)
 - Database Initialization: [`database/init_db.py`](database/init_db.py)
@@ -304,8 +339,8 @@ Actual screen captures from the running application:
 
 ---
 
-## 14. License & Credits
+## 15. License & Credits
 
-- **Original Author:** Ibrahim Khalil
-- **Course Assignment:** Session 9 Software Engineering
+- **Author:** Ibrahim Khalil
+- **Version:** 3.0.0
 - **Year:** 2026

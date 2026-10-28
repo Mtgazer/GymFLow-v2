@@ -4,8 +4,7 @@
 
 **Date:** October 28, 2026  
 **Auditor:** Senior Software Engineer  
-**Repository:** [GymFlow-v2 (Mtgazer/GymFLow-v2)](https://github.com/Mtgazer/GymFLow-v2)  
-**Branch:** `feature/session-9-completion`  
+**Branch:** `feature/gymflow-v3` (promoted from `feature/session-9-completion`)  
 
 ---
 
