@@ -1,0 +1,22 @@
+# GymFlow-v2 Dependencies
+# Session 9 Software Engineering Assignment
+
+# GUI Framework and Image Handling
+customtkinter>=6.0.0
+Pillow>=10.0.0
+
+# Database Connectivity (MySQL Primary and Fallback)
+mysql-connector-python>=8.0.0
+pymysql>=1.1.0
+
+# Configuration Management
+python-dotenv>=1.0.0
+
+# Testing Framework
+pytest>=8.0.0
+
+# PDF Report Generation
+reportlab>=4.0.0
+
+# Screen and Window Capture Utilities (Linux X11/Xwayland)
+python-xlib>=0.33

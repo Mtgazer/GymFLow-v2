@@ -1,374 +1,155 @@
-import sqlite3 
+"""Data Access Layer Compatibility Facade.
+Wraps the DatabaseConnectionManager Singleton and repositories to maintain
+backward compatibility with any existing calls while utilizing the new
+Repository Pattern and MySQL/SQLite unified driver.
+"""
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from data.connection import DatabaseConnectionManager
+from models import Member, Plan
+from repositories.dashboard_repository import DashboardRepository
+from repositories.member_repository import MemberRepository
+from repositories.plan_repository import PlanRepository
+
+
 class Database:
-    def __init__(self, db_path="gym.db"):
-        self.connection = sqlite3.connect(db_path)
+    """Compatibility facade bridging legacy calls to the new Repository Pattern
+    and DatabaseConnectionManager.
+    """
 
-        self.connection.row_factory = sqlite3.Row
-
-        # Enable foreign key enforcement
-        self.connection.execute("PRAGMA foreign_keys = ON")
-
-        self.cursor = self.connection.cursor()
-
-        self.create_tables()
-
+    def __init__(self, db_path: Optional[str] = None):
+        self.connection_manager = DatabaseConnectionManager(db_path=db_path)
+        self.member_repo = MemberRepository(self.connection_manager)
+        self.plan_repo = PlanRepository(self.connection_manager)
+        self.dashboard_repo = DashboardRepository(self.connection_manager)
         print("Database initialized successfully!")
 
+    @property
+    def connection(self):
+        return self.connection_manager._connection
+
+    @property
+    def cursor(self):
+        return self.connection.cursor()
 
     def create_tables(self):
-        self.cursor.execute("""
-    CREATE TABLE IF NOT EXISTS members (
-                            
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            
-        full_name TEXT NOT NULL,
-                            
-        phone text UNIQUE NOT NULL,
-                            
-        age INTEGER,
-                            
-        gender TEXT,
-                            
-        created_at TIMESTAMP DEFAULT current_timestamp);
-                            
-    """)
-        self.cursor.execute("""
-    CREATE TABLE IF NOT EXISTS plans (
-                            
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            
-        name TEXT NOT NULL,
-                            
-        duration_days INTEGER NOT NULL,
-                            
-        price REAL NOT NULL);
-                            
-    """)
-        self.cursor.execute("""
-    CREATE TABLE IF NOT EXISTS subscriptions (
+        """Tables are managed by database/init_db.py or connection manager."""
+        pass
 
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-        member_id INTEGER NOT NULL,
-
-        plan_id INTEGER NOT NULL,
-
-        start_date DATE NOT NULL,
-
-        end_date DATE NOT NULL,
-
-        payment_status TEXT NOT NULL
-            CHECK (
-                payment_status IN (
-                    'Paid',
-                    'Pending',
-                    'Cancelled'
-            )
-        ),
-
-        price_paid REAL NOT NULL,
-
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-        FOREIGN KEY(member_id) REFERENCES members(id),
-
-        FOREIGN KEY(plan_id) REFERENCES plans(id)
-
-    );
-    """)
-        self.connection.commit()
-    def add_member(self, full_name, phone, age, gender):
+    def add_member(
+        self, full_name: str, phone: str, age: int = 0, gender: str = "Unknown"
+    ) -> Tuple[bool, Union[int, str]]:
         try:
+            member = Member(
+                full_name=full_name, phone=phone, age=age, gender=gender
+            )
+            member_id = self.member_repo.add(member)
+            return True, member_id
+        except Exception as e:
+            err_msg = str(e).lower()
+            if "unique" in err_msg or "duplicate" in err_msg:
+                return False, "Phone number already exists."
+            return False, f"Failed to add member: {e}"
 
-            self.cursor.execute(
-                """
-            insert into members(
-                full_name,
-                phone, 
-                age, 
-                gender
-            )
-            values(?, ?, ?, ?);
-        """, (
-                full_name,
-                phone,
-                age,
-                gender
-            )
-            )   
-            self.connection.commit()
-        except sqlite3.IntegrityError:
-            return False, "Phone number already exists."
-        member_id = self.cursor.lastrowid
-        return True, member_id
-    def get_member_by_phone(self, phone):
-        self.cursor.execute(
-            """
-                select * from members
-                where phone = ?
-            """, 
-            (phone,)
-            )
+    def get_member_by_phone(self, phone: str) -> Optional[Dict[str, Any]]:
+        return self.member_repo.get_by_phone(phone)
 
-        return self.cursor.fetchone()
-    def get_all_members(self):
-        self.cursor.execute(
-        """
-            select * from members 
-        """
-        )
-        return self.cursor.fetchall()
-    def get_plan_by_id(self, plan_id):
-        self.cursor.execute(
-        """
-            select * from plans where id = ?
-        """, (plan_id, )
-        )
-        return self.cursor.fetchone()
-    def get_plan_by_name(self, name):
-        self.cursor.execute(
-            """
-            SELECT * 
-            FROM plans
-            where name = ?
-            """,
-            (name,)
-        )
-        return self.cursor.fetchone()
+    def get_all_members(self) -> List[Dict[str, Any]]:
+        query = "SELECT * FROM members ORDER BY full_name ASC;"
+        return self.connection_manager.execute_query(query)
+
+    def get_plan_by_id(self, plan_id: int) -> Optional[Dict[str, Any]]:
+        plan = self.plan_repo.get_by_id(plan_id)
+        return plan.to_dict() if plan else None
+
+    def get_plan_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        plan = self.plan_repo.get_by_name(name)
+        return plan.to_dict() if plan else None
+
     def create_subscription(
         self,
-        member_id,
-        plan_id,
-        payment_status,
-        price_paid
-    ):
-
-        plan = self.get_plan_by_id(plan_id)
-
+        member_id: int,
+        plan_id: int,
+        payment_status: str,
+        price_paid: float,
+    ) -> Tuple[bool, str]:
+        plan = self.plan_repo.get_by_id(plan_id)
         if plan is None:
             return False, "Plan not found."
 
-        duration_days = plan["duration_days"]
-
         start_date = datetime.now().date()
-        end_date = start_date + timedelta(days=duration_days)
+        end_date = start_date + timedelta(days=plan.duration_days)
 
         try:
-            self.cursor.execute(
-                """
-                INSERT INTO subscriptions (
-                    member_id,
-                    plan_id,
-                    start_date,
-                    end_date,
-                    payment_status,
-                    price_paid
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    member_id,
-                    plan_id,
-                    start_date,
-                    end_date,
-                    payment_status,
-                    price_paid
-                )
+            self.member_repo.create_subscription(
+                member_id=member_id,
+                plan_id=plan_id,
+                start_date=start_date,
+                end_date=end_date,
+                payment_status=payment_status,
+                price_paid=price_paid,
             )
-
-            self.connection.commit()
-
             return True, "Subscription created successfully!"
+        except Exception as e:
+            return False, f"Unable to create subscription: {e}"
 
-        except sqlite3.IntegrityError:
-            return False, "Unable to create subscription."
-    def add_plan(self,
-                name,
-                duration_days,
-                price):
-        try: 
-            self.cursor.execute(
-            """
-            insert into plans 
-            (
-            name,
-            duration_days,
-            price
-            )
-            values(? ,? ,? )      
-            """,
-            (
-            name,
-            duration_days,
-            price
-            )
-
-        )
-            self.connection.commit()
-            return True, "Plan added successfully."
-        except sqlite3.Error as e:
-            return False, str(e)
-    def delete_member(self, member_id):
-
+    def add_plan(
+        self, name: str, duration_days: int, price: float
+    ) -> Tuple[bool, str]:
         try:
+            plan = Plan(name=name, duration_days=duration_days, price=price)
+            self.plan_repo.add(plan)
+            return True, "Plan added successfully."
+        except Exception as e:
+            return False, str(e)
 
-            self.cursor.execute(
-                """
-                DELETE FROM subscriptions
-                WHERE member_id = ?
-                """,
-                (member_id,)
-            )
-
-            self.cursor.execute(
-                """
-                DELETE FROM members
-                WHERE id = ?
-                """,
-                (member_id,)
-            )
-
-            self.connection.commit()
-
-            return True
-
-        except sqlite3.Error:
+    def delete_member(self, member_id: int) -> bool:
+        try:
+            return self.member_repo.delete(member_id)
+        except Exception:
             return False
+
     def update_member(
         self,
-        member_id,
-        full_name,
-        phone,
-        plan_id,
-        price_paid
-    ):
-
+        member_id: int,
+        full_name: str,
+        phone: str,
+        plan_id: int,
+        price_paid: float,
+    ) -> bool:
         try:
-            
-            self.cursor.execute(
-                """
-                UPDATE members
-                SET
-                    full_name = ?,
-                    phone = ?
-                WHERE id = ?
-                """,
-                (
-                    full_name,
-                    phone,
-                    member_id,
-                )
+            return self.member_repo.update_member_and_subscription(
+                member_id=member_id,
+                full_name=full_name,
+                phone=phone,
+                plan_id=plan_id,
+                price_paid=price_paid,
             )
-
-            self.cursor.execute(
-                """
-                UPDATE subscriptions
-                SET
-                    plan_id = ?,
-                    price_paid = ?
-                WHERE id = (
-                    SELECT id
-                    FROM subscriptions
-                    WHERE member_id = ?
-                    ORDER BY id DESC
-                    LIMIT 1
-                )
-                """,
-                (
-                    plan_id,
-                    price_paid,
-                    member_id
-                )
-            )
-            self.connection.commit()
-
-            return True
-
-        except sqlite3.Error as e:
-            print(e)
+        except Exception as e:
+            print(f"Error updating member: {e}")
             return False
-    def get_member_by_id(self, member_id):
 
-        self.cursor.execute(
-            """
-            SELECT
-            members.*,
-            subscriptions.plan_id,
-            subscriptions.price_paid,
-            plans.name AS plan_name
-            FROM members
-            LEFT JOIN subscriptions
-                ON members.id = subscriptions.member_id
-            LEFT JOIN plans
-                ON subscriptions.plan_id = plans.id
-            WHERE members.id = ?
-            ORDER BY subscriptions.id DESC
-            LIMIT 1;
-            """,
-            (member_id,)
-        )
+    def get_member_by_id(self, member_id: int) -> Optional[Dict[str, Any]]:
+        return self.member_repo.get_by_id(member_id)
 
-        return self.cursor.fetchone()
-    
-    def get_total_members(self):
+    def get_total_members(self) -> int:
+        return self.dashboard_repo.get_total_members()
 
-        self.cursor.execute("""
-            SELECT COUNT(*)
-            FROM members
-        """)
+    def get_active_members(self) -> int:
+        return self.dashboard_repo.get_active_members()
 
-        return self.cursor.fetchone()[0]
-    
-    def get_active_members(self):
+    def get_expired_members(self) -> int:
+        return self.dashboard_repo.get_expired_members()
 
-        self.cursor.execute("""
-            SELECT COUNT(DISTINCT member_id)
-            FROM subscriptions
-            WHERE end_date >= DATE('now')
-        """)
+    def get_total_revenue(self) -> float:
+        return self.dashboard_repo.get_total_revenue()
 
-        return self.cursor.fetchone()[0]
-    def get_expired_members(self):
+    def get_recent_subscriptions(self) -> List[Dict[str, Any]]:
+        return self.dashboard_repo.get_recent_subscriptions(limit=5)
 
-        self.cursor.execute("""
-            SELECT COUNT(DISTINCT member_id)
-            FROM subscriptions
-            WHERE end_date < DATE('now')
-        """)
-
-        return self.cursor.fetchone()[0]
-    
-    def get_total_revenue(self):
-
-        self.cursor.execute("""
-            SELECT IFNULL(SUM(price_paid),0)
-            FROM subscriptions
-        """)
-
-        return self.cursor.fetchone()[0]
-
-    def get_recent_subscriptions(self):
-
-        self.cursor.execute("""
-            SELECT
-                members.full_name,
-                plans.name AS plan_name,
-                subscriptions.payment_status,
-                subscriptions.end_date
-            FROM subscriptions
-            JOIN members
-                ON subscriptions.member_id = members.id
-            JOIN plans
-                ON subscriptions.plan_id = plans.id
-            ORDER BY subscriptions.id DESC
-            LIMIT 5
-        """)
-
-        return self.cursor.fetchall()
-
-    def get_members(self):
-        self.cursor.execute("""
+    def get_members(self) -> List[Dict[str, Any]]:
+        query = """
             SELECT
                 members.id,
                 members.full_name,
@@ -379,15 +160,14 @@ class Database:
             LEFT JOIN subscriptions
                 ON members.id = subscriptions.member_id
                 AND subscriptions.id = (
-                    SELECT id
+                    SELECT s2.id
                     FROM subscriptions s2
                     WHERE s2.member_id = members.id
-                    ORDER BY id DESC
+                    ORDER BY s2.id DESC
                     LIMIT 1
                 )
             LEFT JOIN plans
                 ON subscriptions.plan_id = plans.id
-            ORDER BY members.full_name;
-        """)
-
-        return self.cursor.fetchall()
+            ORDER BY members.full_name ASC;
+        """
+        return self.connection_manager.execute_query(query)
